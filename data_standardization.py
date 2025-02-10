@@ -24,7 +24,7 @@ def convert(molecule, value, unit):
             pass
 
     unit = 'mg/kg'
-    return float(value), unit
+    return round(float(value), 5), unit
 
 
 with open('data/data_without_dubl.json', 'r') as file:
