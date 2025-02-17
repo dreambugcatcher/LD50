@@ -1,9 +1,10 @@
 from rdkit.Chem import MolFromSmiles, rdFingerprintGenerator as fp
-from numpy import zeros
+from numpy import zeros, hstack, array
 from rdkit import DataStructs
 from pandas import DataFrame, MultiIndex
 from json import load
 from sklearn.preprocessing import StandardScaler
+from pickle import dump
 
 
 def set_animal(animal):
@@ -24,26 +25,28 @@ def set_animal(animal):
 
 
 def set_type(inj):
-    # key: oral, ip, iv, sc, dermal, skin
+    # key: oral, ip, iv, sc, dermal
     match inj:
         case None:
-            return [0, 0, 0, 0, 0, 0]
+            return [0, 0, 0, 0, 0]
         case 'oral':
-            return [1, 0, 0, 0, 0, 0]
+            return [1, 0, 0, 0, 0]
         case 'ip':
-            return [0, 1, 0, 0, 0, 0]
+            return [0, 1, 0, 0, 0]
         case 'iv':
-            return [0, 0, 1, 0, 0, 0]
+            return [0, 0, 1, 0, 0]
         case 'sc':
-            return [0, 0, 0, 1, 0, 0]
+            return [0, 0, 0, 1, 0]
         case 'dermal':
-            return [0, 0, 0, 0, 1, 0]
-        case 'skin':
-            return [0, 0, 0, 0, 0, 1]
+            return [0, 0, 0, 0, 1]
 
 
 with open('../ld50/data/standardized_data.json', 'r') as file:
     data = load(file)
+
+print(len(data))
+for_df_values = []
+for_df_prints = []
 
 mfpgen = fp.GetMorganGenerator(radius=2, fpSize=2048)
 for_df = []
@@ -57,6 +60,10 @@ for id, compinfo in data.items():
              *set_animal(el['animal']), *set_type(el['injection']),
              el['value']))
 
+        for_df_values.append(el['value'])
+        dop_value = array(set_animal(el['animal'])+set_type(el['injection']))
+        for_df_prints.append(hstack((molprint, dop_value)))
+
 df = DataFrame(for_df)
 df.columns = MultiIndex.from_tuples([('id', ''), ('structure', ''),
                                      ('animals', 'rat'),
@@ -69,11 +76,14 @@ df.columns = MultiIndex.from_tuples([('id', ''), ('structure', ''),
                                      ('types', 'iv'),
                                      ('types', 'sc'),
                                      ('types', 'dermal'),
-                                     ('types', 'skin'),
                                      ('value', '')])
-# df.to_excel('data/dataframe.xlsx', merge_cells=True)
+
 
 scaler = StandardScaler()
+df_Y = DataFrame(for_df_values)
+calc_df_X = DataFrame(for_df_prints)
+calc_df_Y = scaler.fit_transform(df_Y)
+# with open('data/calc_data.pickle', 'wb') as file:
+# dump((calc_df_X, calc_df_Y), file)
 
-df['standtr'] = scaler.fit_transform(df[['value']])
-print(df)
+df.to_excel('data/df.xlsx')
